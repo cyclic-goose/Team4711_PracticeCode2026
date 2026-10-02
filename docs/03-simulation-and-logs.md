@@ -16,7 +16,7 @@ robot to confirm, and review the logs at home.**
    - Set **Robot State** to **Teleoperated** to drive, or **Autonomous** to run the selected auto.
 
 The simulated robot uses the same code as the real one, with physics models for the swerve
-modules and flywheel, and PhotonVision's camera simulator standing in for the Limelight.
+modules, and PhotonVision's camera simulator standing in for the Limelight.
 
 ## Watch it in AdvantageScope
 
@@ -28,19 +28,21 @@ AdvantageScope comes with WPILib (Start menu → "AdvantageScope (WPILib)").
    - `RealOutputs/Vision/Summary/TagPoses` → the tags the camera currently sees
    - `RealOutputs/Vision/Summary/RobotPosesAccepted` → vision's pose guesses (ghost robot)
    - `RealOutputs/Odometry/Trajectory` → the PathPlanner path being followed
+   - `RealOutputs/Odometry/TrajectorySetpoint` → where the path says the robot should be now
+     (ghost robot)
    - `RealOutputs/Aim/TargetPosition` → the point being aimed at
-3. Add a **Line Graph** tab with `RealOutputs/Aim/ErrorDegrees`,
-   `RealOutputs/Shooter/TargetRPM`, `Shooter/LaunchVelocityRpm`, and
+3. Add a **Line Graph** tab with `RealOutputs/PathPlanner/TranslationErrorMeters`,
+   `RealOutputs/PathPlanner/RotationErrorDegrees`, `RealOutputs/Aim/ErrorDegrees`, and
    `RealOutputs/Vision/Camera0/DetectionRatePercent`.
 4. **File → Export Layout** to save it, so you get the same view every session.
 
 > **Naming:** values the code *calculates* (`Logger.recordOutput`) show up under `RealOutputs/`.
-> Sensor *inputs* (like `Shooter/LaunchVelocityRpm`) and `NetworkInputs/Tuning/...` show up at
+> Sensor *inputs* (like `Vision/Camera0/TagIds` or `Drive/Gyro/...`) and `NetworkInputs/Tuning/...` show up at
 > the top level. The docs drop the `RealOutputs/` prefix to keep things short.
 
 ### Changing tunable values live
 
-Everything under `/Tuning/` (aim gains, shooter gains, manual RPM, speed limit) can be edited
+Everything under `/Tuning/` (aim gains, teleop speed limit) can be edited
 while the code runs:
 
 - **AdvantageScope:** turn on **tuning mode** (the slider icon in the sidebar), then click a value
@@ -57,7 +59,7 @@ Sim GUI's NetworkTables / SmartDashboard view. Then switch to Autonomous.
 ## What simulation is good for, and what it isn't
 
 **Good for:** checking logic and wiring, aiming behavior, button bindings, PathPlanner autos and
-pathfinding, shooter control, learning AdvantageScope, and catching crashes before robot day.
+pathfinding, learning AdvantageScope, and catching crashes before robot day.
 
 **Not good for:** judging vision *accuracy*. In this template the simulated camera "sees" the
 world from the robot's *estimated* pose, so vision always agrees with odometry. Real tag detection
@@ -70,19 +72,21 @@ test is for. A physics library called **maple-sim** can add a separate "true" po
 ./gradlew test
 ```
 
-The results report is at `build/reports/tests/test/index.html`. The tests in
-`src/test/java/frc/robot/SimulatedRobotTest.java` boot the whole robot in simulation with
-simulated time and check real behavior:
+The results report is at `build/reports/tests/test/index.html`. `SimulatedRobotTest` and
+`AllPathsAndAutosTest` boot the whole robot in simulation with simulated time and check real
+behavior:
 
 | Test | Checks |
 | --- | --- |
 | `level2AimTurnsToFaceTheHub` | Starting 150° off, the robot turns to face the hub within 2° |
 | `level2AimStaysOnTargetWhileStrafing` | The aim stays within 4° while strafing past the hub |
 | `level1TxAimWorksDespiteLatencyAndDroppedFrames` | tx aim settles within 1.5° with 60 ms latency and **50% dropped frames** |
-| `shooterReachesTargetSpeed` | The flywheel reaches 3000 RPM in under 2 s |
-| `examplePathEndsAtTheShootingSpot` | The example path ends within 10 cm of the shooting spot |
-| `pathfindingDrivesAroundTheHubToTheShootingSpot` | Pathfinding from behind the hub goes **around** it and reaches the spot |
-| `autoChooserLoadedTheExampleAuto` | The .auto file loads |
+| `pathfindingDrivesAroundTheHubToTheAimingSpot` | Pathfinding from behind the hub goes **around** it and reaches the spot |
+| `everyPathEndsWhereItShould` | **Every** `.path` file: the robot follows it and ends within 15 cm / 5° of its end |
+| `everyAutoUsesRealPathsAndRegisteredCommands` | **Every** `.auto` file: its paths exist and its named commands are registered |
+| `classroomTourEndsBackAtTheStartFacingTheHub` | The whole `Classroom - Tour` auto runs and ends at the start, aimed |
+| `classroomLoopIsFlippedCorrectlyOnRed` | On Red, the loop happens in front of the **red** hub |
+| `autoChooserFoundTheExampleAutos` | The auto chooser picked up the .auto files |
 
 Run the tests after every change. If one fails, the change broke *behavior*, which is a lot
 cheaper to find at home than at the robot.
@@ -104,7 +108,8 @@ What to look at:
 - **Aim wobbling?** `Aim/ErrorDegrees` and `Aim/OmegaRadPerSec`. Regular back-and-forth swings
   mean kP is too high or kD too low.
 - **Pose jumping?** `Vision/Camera0/RobotPosesRejected` and `Accepted` on the 3D field.
-- **Shooter inconsistent?** `Shooter/LaunchVelocityRpm` against `Shooter/TargetRPM` during a shot.
+- **Path following off?** `PathPlanner/TranslationErrorMeters` over the path, and
+  `Odometry/TrajectorySetpoint` (ghost) against `Odometry/Robot` on the 3D field (doc 05, B8).
 
 ### Replay (advanced)
 

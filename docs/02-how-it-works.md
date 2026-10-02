@@ -78,6 +78,10 @@ or off the field. Accepted and rejected poses are both logged so you can see the
 the code got it (30–60 ms later). The estimator applies the correction at that earlier moment in
 its history and replays forward. That's why vision doesn't make the pose jitter.
 
+**Pose resets:** after `setPose` (auto start, Start button) that history is wiped, so a frame
+captured *before* the reset can't be placed correctly. `Drive.addVisionMeasurement` ignores those
+frames; only the one or two that were "in flight" are lost.
+
 ## 5. Aiming
 
 ### Why the old code was slow and wobbly
@@ -119,14 +123,16 @@ the real robot.
 Once the robot knows where it is on the field (section 4), aiming needs no camera at all:
 
 ```
-targetHeading = direction from robot to hub center  (minus SHOOTER_FACING)
+targetHeading = direction from robot to hub center  (minus AIM_SIDE)
 omega = feedforward + PID(targetHeading - currentHeading)
 ```
 
 Benefits:
 
 - It keeps aiming **with no tag in view**; odometry carries it between tag sightings.
-- It knows the **distance**, which sets the shooter speed.
+- It knows the **distance** to the target (logged as `Field/DistanceToHubMeters`).
+- It's a quick **odometry check**: if the pose is wrong, the robot visibly points at the wrong
+  place.
 - It handles **driving while aiming**. As you strafe past the hub, the direction to the hub sweeps
   around. The **feedforward** (`AimingMath.bearingRateRadPerSec`) predicts that sweep from your
   joystick velocity, so the robot turns *with* it instead of lagging behind. Tested by
@@ -142,72 +148,40 @@ Both levels share one controller with these live-tunable gains under `/Tuning/Ai
 - **kP**: turn speed per unit of error. More = snappier, too much = overshoot and wobble.
 - **kD**: damping. Resists fast changes in error, reducing overshoot. Too much = sluggish/twitchy.
 - **MaxOmegaRadPerSec**: speed limit on turning.
-- **ToleranceDeg**: how close counts as "aimed" (feeding and rumble wait for this).
+- **ToleranceDeg**: how close counts as "aimed" (the rumble and the `AimAtHub` auto command wait for this).
 
 How to tune on the robot: set kD = 0. Raise kP until it snaps to the target and *just* starts to
 overshoot. Back kP off a little, then add a small kD to clean up any remaining overshoot. Watch
 `Aim/ErrorDegrees` in AdvantageScope while you do it.
 
-## 6. Shooter speed from distance
+## 6. PathPlanner (summary)
 
-**Velocity control:** the flywheel runs `VelocityVoltage` on the TalonFX: "hold 3000 RPM". The
-TalonFX runs the control loop itself 1000 times a second:
+PathPlanner has two parts: a desktop **GUI** where you draw paths and autos, and a **library**
+in the robot code that turns each path into a timed plan (a *trajectory*) and follows it, using
+the pose from section 4. The full explanation and a step-by-step tutorial are in
+**[05-pathplanner-guide.md](05-pathplanner-guide.md)**.
 
-```
-volts = kS·sign(target) + kV·target + kP·(target − measured)
-```
+Where it lives in the code:
 
-- **kV** does most of the work: the volts needed per unit of speed. Estimate it as
-  12 V ÷ free speed.
-- **kS** overcomes friction.
-- **kP** corrects what's left over, like the dip when a ball goes through.
+- `Drive` constructor: `AutoBuilder.configure(...)` connects PathPlanner to the drivetrain (pose,
+  reset, speeds, drive), sets the path-following PID (`PATH_TRANSLATION_PID`,
+  `PATH_ROTATION_PID`), the robot config (`PP_CONFIG`), and "flip paths on red".
+- `RobotContainer.registerNamedCommands()`: Java commands the GUI can use by name.
+- `RobotContainer`: the auto chooser (`AutoBuilder.buildAutoChooser()`) and the pathfinding
+  buttons (D-pad down / up).
+- `src/main/deploy/pathplanner/`: the paths, autos, navgrid and GUI settings.
+- `AllPathsAndAutosTest`: drives every path in simulation and checks every auto.
 
-This is far more consistent than percent output, which changes with battery voltage.
+**When a path misses its end point:** first check the pose is right (vision + Start button), then
+the robot config, then the path-following PID.
 
-**The table:** `ShooterConstants.DISTANCE_TO_RPM` maps distance (m) to RPM. In between entries it
-**interpolates** in a straight line. You build it on the robot: park at a distance, adjust
-`/Tuning/Shooter/ManualRPM` (D-pad up) until shots go in, write down `Field/DistanceToHubMeters`
-and the RPM, and repeat at 4–6 distances.
-
-## 7. PathPlanner
-
-**PathPlanner** has two parts: a desktop **GUI** where you draw paths and autos, and a
-**library** (PathPlannerLib) in the robot code that follows them.
-
-- **Paths** (`deploy/pathplanner/paths/*.path`): curves with a start and end heading and speed
-  limits. Always drawn for **blue**; flipped automatically on red.
-- **Autos** (`deploy/pathplanner/autos/*.auto`): sequences of paths and **named commands**, e.g.
-  "follow path, then Shoot". Named commands are registered in
-  `RobotContainer.registerNamedCommands()`, and **must be registered before** the auto chooser is
-  built.
-- **AutoBuilder** (configured in the `Drive` constructor) tells PathPlanner how to read the pose,
-  reset it, read speeds, and drive. It's also where the path-following PID lives
-  (`PPHolonomicDriveController`, translation and rotation kP = 5).
-- **resetOdom: true** in an auto sets the robot's pose to the path's start at the beginning of
-  auto. The robot has to actually be placed there.
-- **Robot config** (`Drive.PP_CONFIG` + `settings.json`): mass, MOI, wheel size, gearing, motor
-  type. PathPlanner uses these to work out how fast the robot can safely accelerate. Wrong values
-  mean paths it can't actually follow.
-
-**Pathfinding** (`AutoBuilder.pathfindToPoseFlipped`, the **D-pad down** button) builds a path on
-the fly from wherever the robot is to a target, around obstacles in `navgrid.json`. The included
-navgrid marks the field walls and both hubs. Each hub has 0.65 m of padding: half the bumper width
-plus room for the path smoothing, which cuts corners slightly. **Not marked:** the bumps, trenches
-and towers; I wasn't certain enough of their exact sizes. Open the navgrid editor in the
-PathPlanner GUI and paint them before pathfinding near them. The simulated test
-`pathfindingDrivesAroundTheHubToTheShootingSpot` checks the robot goes around the hub, not through
-it.
-
-**When a path misses its end point:** first check the pose is right (vision + Start button),
-then the robot config, then the path-following PID.
-
-## 8. AdvantageKit: the IO layer, logging and replay
+## 7. AdvantageKit: the IO layer, logging and replay
 
 Every subsystem is split in two:
 
-- The **subsystem** (`Shooter.java`) holds the logic and only talks to an interface (`ShooterIO`).
-- **IO implementations** do the hardware: `ShooterIOTalonFX` (real), `ShooterIOSim` (physics),
-  or an empty one (replay).
+- The **subsystem** (`Vision.java`) holds the logic and only talks to an interface (`VisionIO`).
+- **IO implementations** do the hardware: `VisionIOLimelight` (real), `VisionIOPhotonVisionSim`
+  (simulated camera), or an empty one (replay).
 
 All sensor values pass through an `@AutoLog` "inputs" object, which AdvantageKit records every
 loop. That gives you:
@@ -220,11 +194,12 @@ loop. That gives you:
 **TunableNumber** (`util/TunableNumber.java`): any value under `/Tuning/` can be changed live, and
 changes are logged. Copy good values back into the code, because dashboard values don't save.
 
-## 9. Where to go next
+## 8. Where to go next
 
-Once Levels 1 and 2, the shooter table and PathPlanner autos all work:
+Once Levels 1 and 2 and the PathPlanner autos all work:
 
-- **Shoot on the move:** aim at a "virtual hub" offset by robot velocity × ball flight time.
+- **Precise final approaches:** `AutoBuilder.pathfindThenFollowPath` pathfinds to the start of a
+  hand-drawn path, then follows it exactly (doc 05, A6).
 - **Better pose trust:** tune `VisionConstants` std devs from logs; reject MegaTag2 while
   spinning very fast.
 - **Limelight 4 internal IMU:** `imumode_set` modes let the camera use its own gyro. The Pigeon 2

@@ -23,16 +23,15 @@ public final class AimingMath {
   }
 
   /**
-   * The robot heading that makes the SHOOTER point at the target.
+   * The robot heading that makes a chosen side of the robot point at the target.
    *
    * @param robot Robot position on the field
    * @param target Target position on the field
-   * @param shooterFacing Which way the shooter points relative to the robot's front (0° = shooter
-   *     on the front, 180° = shooter on the back)
+   * @param aimSide Which side of the robot should face the target (0° = front, 180° = back)
    */
   public static Rotation2d headingToFaceTarget(
-      Translation2d robot, Translation2d target, Rotation2d shooterFacing) {
-    return bearing(robot, target).minus(shooterFacing);
+      Translation2d robot, Translation2d target, Rotation2d aimSide) {
+    return bearing(robot, target).minus(aimSide);
   }
 
   /**

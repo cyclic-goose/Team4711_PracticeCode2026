@@ -16,6 +16,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -33,10 +34,6 @@ import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.intake.IntakeIO;
 import frc.robot.subsystems.intake.IntakeIOTalonSRX;
-import frc.robot.subsystems.shooter.Shooter;
-import frc.robot.subsystems.shooter.ShooterIO;
-import frc.robot.subsystems.shooter.ShooterIOSim;
-import frc.robot.subsystems.shooter.ShooterIOTalonFX;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionIO;
 import frc.robot.subsystems.vision.VisionIOLimelight;
@@ -56,7 +53,6 @@ public class RobotContainer {
   // Subsystems
   private final Drive drive;
   private final Vision vision;
-  private final Shooter shooter;
   private final Intake intake;
   private final AimController aim;
 
@@ -86,7 +82,6 @@ public class RobotContainer {
             new Vision(
                 drive::addVisionMeasurement,
                 new VisionIOLimelight(camera0Name, drive::getRotation));
-        shooter = new Shooter(new ShooterIOTalonFX());
         intake = new Intake(new IntakeIOTalonSRX());
         break;
 
@@ -103,7 +98,6 @@ public class RobotContainer {
             new Vision(
                 drive::addVisionMeasurement,
                 new VisionIOPhotonVisionSim(camera0Name, robotToCamera0, drive::getPose));
-        shooter = new Shooter(new ShooterIOSim());
         intake = new Intake(new IntakeIO() {});
         break;
 
@@ -118,7 +112,6 @@ public class RobotContainer {
                 new ModuleIO() {},
                 new ModuleIO() {});
         vision = new Vision(drive::addVisionMeasurement, new VisionIO() {});
-        shooter = new Shooter(new ShooterIO() {});
         intake = new Intake(new IntakeIO() {});
         break;
     }
@@ -152,14 +145,20 @@ public class RobotContainer {
     configureButtonBindings();
   }
 
-  /** Commands that PathPlanner autos can call by name (in the GUI: "Named Command"). */
+  /**
+   * Commands that PathPlanner autos can call by name. In the PathPlanner GUI, add a "Named Command"
+   * block to an auto (or attach one to an event marker) and type one of these names EXACTLY. The
+   * test AllPathsAndAutosTest fails if an auto uses a name that isn't registered here.
+   */
   private void registerNamedCommands() {
-    NamedCommands.registerCommand("Shoot", shootWhenReady().withTimeout(5.0));
-    NamedCommands.registerCommand("SpinUp", shooter.spinUpForDistance(this::getDistanceToHub));
+    // Turn to face our hub (using the field pose), then finish. Gives up after 2 s.
     NamedCommands.registerCommand(
         "AimAtHub", aim.aimAtHub(() -> 0.0, () -> 0.0).until(aim::isAimed).withTimeout(2.0));
+
+    // Records the time in the log. Harmless; used to show how event markers work.
     NamedCommands.registerCommand(
-        "RunIntake", Commands.startEnd(() -> intake.setFeedPercent(0.65), intake::stop, intake));
+        "LogMarker",
+        Commands.runOnce(() -> Logger.recordOutput("Auto/LastMarkerTime", Timer.getTimestamp())));
   }
 
   /** Use this method to define your button->command mappings. Controller map is in README.md. */
@@ -201,47 +200,42 @@ public class RobotContainer {
         .whileTrue(
             aim.aimWithLimelightTx(() -> -controller.getLeftY(), () -> -controller.getLeftX()));
 
-    // A (hold): LEVEL 2 "shoot mode". Aims at our hub using the field pose AND spins the
-    // flywheel to the right speed for the distance. Pull the right trigger to feed.
+    // A (hold): LEVEL 2 aim. Faces our hub using the robot's field position, even when no tag
+    // is visible. A great way to check that the vision odometry is right: if the pose is
+    // wrong, the robot points at the wrong place.
     controller
         .a()
-        .whileTrue(
-            Commands.parallel(
-                aim.aimAtHub(() -> -controller.getLeftY(), () -> -controller.getLeftX()),
-                shooter.spinUpForDistance(this::getDistanceToHub)));
+        .whileTrue(aim.aimAtHub(() -> -controller.getLeftY(), () -> -controller.getLeftX()));
 
-    // D-pad up (hold): shooter TUNING mode. Same as A, but the flywheel runs at
-    // /Tuning/Shooter/ManualRPM so you can find the right speed for each distance.
-    controller
-        .povUp()
-        .whileTrue(
-            Commands.parallel(
-                aim.aimAtHub(() -> -controller.getLeftY(), () -> -controller.getLeftX()),
-                shooter.spinUpManual()));
-
-    // D-pad down (hold): drive itself to the shooting spot (PathPlanner pathfinding), then aim.
-    // Let go to cancel instantly. pathfindToPoseFlipped mirrors the blue spot for red.
-    controller
-        .povDown()
-        .whileTrue(
-            AutoBuilder.pathfindToPoseFlipped(
-                    new Pose2d(
-                        FieldConstants.blueShootingPosition,
-                        Rotation2d.kZero.minus(AimController.SHOOTER_FACING)),
-                    pathfindingConstraints)
-                .andThen(aim.aimAtHub(() -> 0.0, () -> 0.0)));
-
-    // D-pad right (hold): run the shooter transfer motor. Direction copied from the old
-    // commented-out code (-0.55). TODO: verify direction/whether your shooter needs it.
-    controller.povRight().whileTrue(shooter.runTransfer(-0.55));
-
-    // Rumble the controller when aimed AND the flywheel is at speed: safe to shoot.
-    new Trigger(() -> aim.isAimed() && shooter.atSpeed())
+    // Rumble the controller while aimed.
+    new Trigger(aim::isAimed)
         .whileTrue(
             Commands.startEnd(
                     () -> controller.getHID().setRumble(RumbleType.kBothRumble, 0.4),
                     () -> controller.getHID().setRumble(RumbleType.kBothRumble, 0.0))
                 .ignoringDisable(true));
+
+    // ---------------- Path planning ----------------
+    // D-pad down (hold): drive itself to the aiming spot in front of the hub (PathPlanner
+    // pathfinding), then aim. Let go to cancel instantly. pathfindToPoseFlipped mirrors the blue
+    // spot for red.
+    controller
+        .povDown()
+        .whileTrue(
+            AutoBuilder.pathfindToPoseFlipped(
+                    new Pose2d(
+                        FieldConstants.blueAimingSpot,
+                        Rotation2d.kZero.minus(AimController.AIM_SIDE)),
+                    pathfindingConstraints)
+                .andThen(aim.aimAtHub(() -> 0.0, () -> 0.0)));
+
+    // D-pad up (hold): drive itself back to where the "Classroom" autos start, so you don't have
+    // to push the robot back by hand between test runs.
+    controller
+        .povUp()
+        .whileTrue(
+            AutoBuilder.pathfindToPoseFlipped(
+                FieldConstants.blueClassroomStart, pathfindingConstraints));
 
     // ---------------- Intake (same as the old code) ----------------
     // Left bumper = deploy, right bumper = retract, right trigger = rollers in,
@@ -268,20 +262,6 @@ public class RobotContainer {
                 .ignoringDisable(true));
   }
 
-  /**
-   * Aim at the hub, spin up for the distance, and feed once BOTH are ready (or after 2 s). Used by
-   * autos via the "Shoot" named command.
-   */
-  private Command shootWhenReady() {
-    Command feed =
-        Commands.startEnd(() -> intake.setFeedPercent(0.75), intake::stop, intake).withTimeout(1.5);
-    return Commands.deadline(
-        Commands.sequence(
-            Commands.waitUntil(() -> aim.isAimed() && shooter.atSpeed()).withTimeout(2.0), feed),
-        aim.aimAtHub(() -> 0.0, () -> 0.0),
-        shooter.spinUpForDistance(this::getDistanceToHub));
-  }
-
   /** Distance from the robot's center to the center of our hub, in meters. */
   public double getDistanceToHub() {
     return drive.getPose().getTranslation().getDistance(FieldConstants.getOurHubCenter());
@@ -291,8 +271,6 @@ public class RobotContainer {
   public void updateDashboard() {
     Logger.recordOutput("Field/OurHubCenter", FieldConstants.getOurHubCenter());
     Logger.recordOutput("Field/DistanceToHubMeters", getDistanceToHub());
-    Logger.recordOutput("Field/TableRPMForDistance", Shooter.rpmForDistance(getDistanceToHub()));
-    Logger.recordOutput("Aim/ReadyToShoot", aim.isAimed() && shooter.atSpeed());
   }
 
   // Accessors for the simulation tests in src/test (package-private on purpose)
@@ -302,10 +280,6 @@ public class RobotContainer {
 
   AimController getAim() {
     return aim;
-  }
-
-  Shooter getShooter() {
-    return shooter;
   }
 
   /**

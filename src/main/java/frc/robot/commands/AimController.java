@@ -40,19 +40,20 @@ import org.littletonrobotics.junction.Logger;
  *
  * Uses the robot's estimated field position (wheel odometry + gyro, corrected by vision). The
  * target is a fixed point on the field (the hub center), so the robot can aim even when NO tag is
- * visible, and it knows the distance for setting shooter speed. This is what most good teams do. It
- * requires the camera position to be set correctly in the Limelight and a correct starting heading.
+ * visible, and it knows the distance to the target. This is what most good teams do. It requires
+ * the camera position to be set correctly in the Limelight and a correct starting heading.
  *
  * <p>Both share the same heading controller, tuned live from the dashboard under /Tuning/Aim/.
  */
 public class AimController {
   /**
-   * Which way the shooter points relative to the robot's front. Rotation2d.kZero means the shooter
-   * shoots out the front of the robot, Rotation2d.k180deg means out the back.
+   * Which side of the robot should point at the target. Rotation2d.kZero = the FRONT (where the
+   * Limelight is), Rotation2d.k180deg = the back. (On a robot with a shooter, this is the side the
+   * shooter is on.)
    *
    * <p>TODO: set this to match your robot.
    */
-  public static final Rotation2d SHOOTER_FACING = Rotation2d.kZero;
+  public static final Rotation2d AIM_SIDE = Rotation2d.kZero;
 
   // Heading controller gains. Units: kP is (rad/s of turning) per (rad of error).
   // Start with kD = 0. Raise kP until it snaps to the target quickly; if it overshoots/wobbles,
@@ -80,7 +81,7 @@ public class AimController {
 
   /**
    * True if an aim command ran within the last 0.1 s and the heading error is inside the tolerance.
-   * Use this to only feed a ball when the robot is actually pointed at the target.
+   * Use this to wait until the robot is actually pointed at the target.
    */
   public boolean isAimed() {
     return Timer.getTimestamp() - lastRunTimestamp < 0.1
@@ -140,14 +141,14 @@ public class AimController {
   }
 
   /**
-   * Level 2: point the shooter at the center of our hub using the robot's field position, while the
-   * driver controls translation.
+   * Level 2: point the robot (its AIM_SIDE) at the center of our hub using the robot's field
+   * position, while the driver controls translation.
    */
   public Command aimAtHub(DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
     return aimAtPoint(xSupplier, ySupplier, FieldConstants::getOurHubCenter);
   }
 
-  /** Level 2: point the shooter at any field position while the driver translates. */
+  /** Level 2: point the robot (its AIM_SIDE) at any field position while the driver translates. */
   public Command aimAtPoint(
       DoubleSupplier xSupplier, DoubleSupplier ySupplier, Supplier<Translation2d> target) {
     return Commands.run(
@@ -155,7 +156,7 @@ public class AimController {
               Translation2d robot = drive.getPose().getTranslation();
               Translation2d targetPosition = target.get();
               Rotation2d targetHeading =
-                  AimingMath.headingToFaceTarget(robot, targetPosition, SHOOTER_FACING);
+                  AimingMath.headingToFaceTarget(robot, targetPosition, AIM_SIDE);
 
               ChassisSpeeds fieldSpeeds =
                   DriveCommands.joystickToFieldSpeeds(

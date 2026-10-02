@@ -41,8 +41,8 @@ public final class Constants {
     public static final int FEED_MOTOR_1 = 15; // Intake roller (TalonSRX)
     public static final int FEED_MOTOR_2 = 16; // Intake roller (TalonSRX)
     public static final int FEED_MOVE_MOTOR = 10; // Intake deploy/retract (TalonSRX)
-    public static final int TRANSFER_MOTOR = 17; // Shooter transfer (TalonFX)
-    public static final int LAUNCH_MOTOR = 18; // Shooter flywheel (TalonFX)
+    public static final int TRANSFER_MOTOR = 17; // Shooter transfer (TalonFX), shooter not in use
+    public static final int LAUNCH_MOTOR = 18; // Shooter flywheel (TalonFX), shooter not in use
   }
 
   /** roboRIO DIO ports. */

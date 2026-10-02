@@ -1,0 +1,119 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 2.6,
+        "y": 4.0345
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 2.6,
+        "y": 4.502
+      },
+      "isLocked": false,
+      "linkedName": "Classroom Start"
+    },
+    {
+      "anchor": {
+        "x": 2,
+        "y": 4.8845
+      },
+      "prevControl": {
+        "x": 2.33,
+        "y": 4.8845
+      },
+      "nextControl": {
+        "x": 1.67,
+        "y": 4.8845
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 1.4,
+        "y": 4.0345
+      },
+      "prevControl": {
+        "x": 1.4,
+        "y": 4.502
+      },
+      "nextControl": {
+        "x": 1.4,
+        "y": 3.567
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2,
+        "y": 3.1845
+      },
+      "prevControl": {
+        "x": 1.67,
+        "y": 3.1845
+      },
+      "nextControl": {
+        "x": 2.33,
+        "y": 3.1845
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.6,
+        "y": 4.0345
+      },
+      "prevControl": {
+        "x": 2.6,
+        "y": 3.567
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Classroom Start"
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 2,
+      "rotationDegrees": 150
+    }
+  ],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "Halfway",
+      "waypointRelativePos": 2,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "LogMarker"
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 1.5,
+    "maxAcceleration": 1.5,
+    "maxAngularVelocity": 270,
+    "maxAngularAcceleration": 360,
+    "nominalVoltage": 12,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 0
+  },
+  "reversed": false,
+  "folder": "Classroom",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 0
+  },
+  "useDefaultConstraints": false
+}

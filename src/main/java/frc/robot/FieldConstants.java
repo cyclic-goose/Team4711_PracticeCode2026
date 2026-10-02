@@ -50,12 +50,21 @@ public final class FieldConstants {
   public static final Translation2d redHubCenter = centerOfTags(redHubTagIds);
 
   /**
-   * An example spot to shoot from, written for the BLUE alliance: 2.5 m straight back from the
-   * center of the blue hub. Use {@link #flipIfRed(Pose2d)} or PathPlanner's pathfindToPoseFlipped()
-   * to get the red version. Move it wherever your shooter is most accurate.
+   * An example spot in front of the hub, written for the BLUE alliance: 2.5 m straight back from
+   * the center of the blue hub (about 1.9 m from the hub face). The example path ends here and the
+   * D-pad-down pathfinding drives here. Use {@link #flipIfRed(Pose2d)} or PathPlanner's
+   * pathfindToPoseFlipped() to get the red version.
    */
-  public static final Translation2d blueShootingPosition =
+  public static final Translation2d blueAimingSpot =
       new Translation2d(blueHubCenter.getX() - 2.5, blueHubCenter.getY());
+
+  /**
+   * Where the "Classroom" PathPlanner autos start and end, written for BLUE: centered on the hub
+   * face, robot center 1.42 m (56 in) from the face, facing the hub. In a classroom with tags 10
+   * and 9 taped up and the Driver Station on Red, this flips to the same spot in front of the wall.
+   */
+  public static final Pose2d blueClassroomStart =
+      new Pose2d(2.6, blueHubCenter.getY(), Rotation2d.kZero);
 
   /** True when the Driver Station says we are on the red alliance (defaults to blue). */
   public static boolean isRedAlliance() {

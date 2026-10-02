@@ -4,16 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.pathplanner.lib.auto.AutoBuilder;
-import com.pathplanner.lib.path.PathPlannerPath;
-import edu.wpi.first.hal.AllianceStationID;
-import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.simulation.DriverStationSim;
-import edu.wpi.first.wpilibj.simulation.SimHooks;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.commands.AimController;
 import frc.robot.subsystems.drive.Drive;
@@ -38,44 +32,20 @@ class SimulatedRobotTest {
 
   @BeforeAll
   static void setUp() {
-    assertTrue(HAL.initialize(500, 0));
-    SimHooks.pauseTiming(); // Time only moves when we call stepTiming()
-    DriverStationSim.setDsAttached(true);
-    DriverStationSim.setAllianceStationId(AllianceStationID.Blue1);
-    DriverStationSim.setAutonomous(false);
-    DriverStationSim.setEnabled(true);
-    DriverStationSim.notifyNewData();
-    DriverStation.refreshData();
-    robot = new RobotContainer();
+    robot = SimTestHelper.robot();
   }
 
   @AfterEach
   void cancelCommands() {
-    CommandScheduler.getInstance().cancelAll();
-    robot.getShooter().stop();
-    runFor(0.5); // Let the robot settle between tests
+    SimTestHelper.reset(); // Let the robot settle between tests
   }
 
-  /** Runs the robot loop (50 times per second of simulated time). */
   private static void runFor(double seconds) {
-    for (int i = 0; i < Math.round(seconds / 0.02); i++) {
-      DriverStationSim.notifyNewData();
-      DriverStation.refreshData();
-      CommandScheduler.getInstance().run();
-      SimHooks.stepTiming(0.02);
-    }
+    SimTestHelper.runFor(seconds);
   }
 
-  /**
-   * Moves the simulated robot to a new pose. The simulated camera reports tags with realistic
-   * delay, so frames captured just BEFORE a teleport arrive just after it and would drag the pose
-   * back. Waiting a moment and resetting again clears them out. (A real robot never teleports, so
-   * this only matters in simulation.)
-   */
   private static void teleport(Pose2d pose) {
-    robot.getDrive().setPose(pose);
-    runFor(0.5);
-    robot.getDrive().setPose(pose);
+    SimTestHelper.teleport(pose);
   }
 
   private static double headingErrorToHubDegrees(Drive drive) {
@@ -83,7 +53,7 @@ class SimulatedRobotTest {
         AimingMath.headingToFaceTarget(
             drive.getPose().getTranslation(),
             FieldConstants.getOurHubCenter(),
-            AimController.SHOOTER_FACING);
+            AimController.AIM_SIDE);
     return wanted.minus(drive.getRotation()).getDegrees();
   }
 
@@ -139,32 +109,11 @@ class SimulatedRobotTest {
   }
 
   @Test
-  void shooterReachesTargetSpeed() {
-    var shooter = robot.getShooter();
-    shooter.setRpm(3000.0);
-    runFor(2.0);
-    assertTrue(shooter.atSpeed(), "Flywheel only reached " + shooter.getVelocityRpm() + " RPM");
-  }
-
-  @Test
-  void examplePathEndsAtTheShootingSpot() throws Exception {
-    Drive drive = robot.getDrive();
-    PathPlannerPath path = PathPlannerPath.fromPathFile("Example - Back Up To Shot");
-    teleport(path.getStartingHolonomicPose().orElseThrow());
-
-    CommandScheduler.getInstance().schedule(AutoBuilder.followPath(path));
-    runFor(4.0);
-
-    Pose2d end = drive.getPose();
-    assertEquals(0.0, end.getTranslation().getDistance(FieldConstants.blueShootingPosition), 0.10);
-  }
-
-  @Test
-  void pathfindingDrivesAroundTheHubToTheShootingSpot() throws Exception {
+  void pathfindingDrivesAroundTheHubToTheAimingSpot() throws Exception {
     Drive drive = robot.getDrive();
     // Start on the far side of the blue hub, so the path has to go around it
     teleport(new Pose2d(6.5, 4.0, Rotation2d.k180deg));
-    var target = new Pose2d(FieldConstants.blueShootingPosition, Rotation2d.kZero);
+    var target = new Pose2d(FieldConstants.blueAimingSpot, Rotation2d.kZero);
 
     CommandScheduler.getInstance()
         .schedule(
@@ -191,14 +140,9 @@ class SimulatedRobotTest {
 
     assertEquals(
         0.0,
-        drive.getPose().getTranslation().getDistance(FieldConstants.blueShootingPosition),
+        drive.getPose().getTranslation().getDistance(FieldConstants.blueAimingSpot),
         0.15,
         "Ended at " + drive.getPose());
-  }
-
-  @Test
-  void autoChooserLoadedTheExampleAuto() {
-    assertTrue(AutoBuilder.getAllAutoNames().contains("Example - Back Up And Shoot"));
   }
 
   /** Fake Limelight: reports tx toward a tag, with latency and random dropped frames. */

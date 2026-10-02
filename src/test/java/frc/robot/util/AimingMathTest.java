@@ -21,13 +21,13 @@ class AimingMathTest {
   }
 
   @Test
-  void shooterOnTheBackMeansFaceAway() {
+  void aimingWithTheBackMeansFaceAway() {
     var robot = new Translation2d(0.0, 0.0);
     var target = new Translation2d(1.0, 0.0);
-    // Shooter on the front: face the target
+    // Aim with the front: face the target
     assertEquals(
         0.0, AimingMath.headingToFaceTarget(robot, target, Rotation2d.kZero).getDegrees(), EPSILON);
-    // Shooter on the back: robot faces directly away so the back points at the target
+    // Aim with the back: robot faces directly away so the back points at the target
     assertEquals(
         180.0,
         Math.abs(AimingMath.headingToFaceTarget(robot, target, Rotation2d.k180deg).getDegrees()),

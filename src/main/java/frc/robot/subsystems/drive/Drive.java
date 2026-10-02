@@ -36,6 +36,7 @@ import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
@@ -75,12 +76,19 @@ public class Drive extends SubsystemBase {
               TunerConstants.FrontLeft.WheelRadius,
               TunerConstants.kSpeedAt12Volts.in(MetersPerSecond),
               WHEEL_COF,
-              // Voltage control (no Phoenix Pro FOC) per TunerConstants. TODO: if the drive
-              // motors are Falcon 500s instead of Kraken X60s, use DCMotor.getFalcon500(1).
+              // Kraken X60s, voltage control (no Phoenix Pro FOC) per TunerConstants
               DCMotor.getKrakenX60(1).withReduction(TunerConstants.FrontLeft.DriveMotorGearRatio),
               TunerConstants.FrontLeft.SlipCurrent,
               1),
           getModuleTranslations());
+
+  // PathPlanner path-following correction gains (see docs/05-pathplanner-guide.md).
+  // The path already tells the robot how fast to go at every moment (feedforward). These only
+  // correct for drift: translation kP = (m/s of correction) per meter of position error, rotation
+  // kP = (rad/s of correction) per radian of heading error. If the robot oscillates around the
+  // path, lower them; if it lags behind and never quite catches up, raise them.
+  private static final PIDConstants PATH_TRANSLATION_PID = new PIDConstants(5.0, 0.0, 0.0);
+  private static final PIDConstants PATH_ROTATION_PID = new PIDConstants(5.0, 0.0, 0.0);
 
   static final Lock odometryLock = new ReentrantLock();
   private final GyroIO gyroIO;
@@ -101,6 +109,7 @@ public class Drive extends SubsystemBase {
       };
   private SwerveDrivePoseEstimator poseEstimator =
       new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
+  private double lastPoseResetTimestamp = Double.NEGATIVE_INFINITY;
 
   public Drive(
       GyroIO gyroIO,
@@ -126,8 +135,7 @@ public class Drive extends SubsystemBase {
         this::setPose,
         this::getChassisSpeeds,
         this::runVelocity,
-        new PPHolonomicDriveController(
-            new PIDConstants(5.0, 0.0, 0.0), new PIDConstants(5.0, 0.0, 0.0)),
+        new PPHolonomicDriveController(PATH_TRANSLATION_PID, PATH_ROTATION_PID),
         PP_CONFIG,
         () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
         this);
@@ -138,7 +146,15 @@ public class Drive extends SubsystemBase {
         });
     PathPlannerLogging.setLogTargetPoseCallback(
         (targetPose) -> {
+          // Where the path says the robot should be RIGHT NOW, and how far off it actually is.
+          // Graph these in AdvantageScope while tuning path following.
           Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
+          Logger.recordOutput(
+              "PathPlanner/TranslationErrorMeters",
+              getPose().getTranslation().getDistance(targetPose.getTranslation()));
+          Logger.recordOutput(
+              "PathPlanner/RotationErrorDegrees",
+              targetPose.getRotation().minus(getRotation()).getDegrees());
         });
 
     // Configure SysId
@@ -344,6 +360,7 @@ public class Drive extends SubsystemBase {
   /** Resets the current odometry pose. */
   public void setPose(Pose2d pose) {
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
+    lastPoseResetTimestamp = Timer.getTimestamp();
   }
 
   /** Adds a new timestamped vision measurement. */
@@ -351,6 +368,12 @@ public class Drive extends SubsystemBase {
       Pose2d visionRobotPoseMeters,
       double timestampSeconds,
       Matrix<N3, N1> visionMeasurementStdDevs) {
+    // Ignore camera frames captured BEFORE the last pose reset (auto start, Start button). The
+    // reset wipes the pose history, so the estimator can't place an older frame correctly and it
+    // would yank the pose. Only the one or two frames that were "in flight" are lost.
+    if (timestampSeconds < lastPoseResetTimestamp) {
+      return;
+    }
     poseEstimator.addVisionMeasurement(
         visionRobotPoseMeters, timestampSeconds, visionMeasurementStdDevs);
   }

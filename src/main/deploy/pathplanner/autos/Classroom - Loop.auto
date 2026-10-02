@@ -7,19 +7,13 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Example - Back Up"
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "AimAtHub"
+            "pathName": "Classroom - Loop"
           }
         }
       ]
     }
   },
   "resetOdom": true,
-  "folder": null,
+  "folder": "Classroom",
   "choreoAuto": false
 }

@@ -1,0 +1,79 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 2.6,
+        "y": 4.0345
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 2.6,
+        "y": 4.39
+      },
+      "isLocked": false,
+      "linkedName": "Classroom Start"
+    },
+    {
+      "anchor": {
+        "x": 2.8714,
+        "y": 5.0473
+      },
+      "prevControl": {
+        "x": 2.6936,
+        "y": 4.7394
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Orbit End"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [
+    {
+      "name": "Slow Zone",
+      "minWaypointRelativePos": 0.3,
+      "maxWaypointRelativePos": 0.7,
+      "constraints": {
+        "maxVelocity": 0.5,
+        "maxAcceleration": 1,
+        "maxAngularVelocity": 180,
+        "maxAngularAcceleration": 360,
+        "nominalVoltage": 12,
+        "unlimited": false
+      }
+    }
+  ],
+  "pointTowardsZones": [
+    {
+      "fieldPosition": {
+        "x": 4.6255,
+        "y": 4.0345
+      },
+      "rotationOffset": 0,
+      "minWaypointRelativePos": 0,
+      "maxWaypointRelativePos": 1,
+      "name": "Face Hub"
+    }
+  ],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 1,
+    "maxAcceleration": 1,
+    "maxAngularVelocity": 180,
+    "maxAngularAcceleration": 360,
+    "nominalVoltage": 12,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -30.0017
+  },
+  "reversed": false,
+  "folder": "Classroom",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 0
+  },
+  "useDefaultConstraints": false
+}
