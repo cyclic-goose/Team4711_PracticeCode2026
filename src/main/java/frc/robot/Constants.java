@@ -79,7 +79,7 @@ public final class Constants {
   /** Turn-to-face-a-target controller (Y and A buttons). See AimController. */
   public static final class Aim {
     // Heading controller gains. kP is (rad/s of turning) per (rad of error).
-    public static final double KP = 6.0;
+    public static final double KP = 40.0;
     public static final double KD = 0.2;
     public static final double MAX_OMEGA_RAD_PER_SEC = 6.0;
     public static final double TOLERANCE_DEG = 2.0;
