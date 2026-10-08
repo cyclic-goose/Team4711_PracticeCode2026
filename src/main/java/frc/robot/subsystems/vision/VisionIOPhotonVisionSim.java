@@ -48,9 +48,10 @@ public class VisionIOPhotonVisionSim extends VisionIOPhotonVision {
       visionSim.addAprilTags(aprilTagLayout);
     }
 
-    // Add sim camera, roughly matching a Limelight 4 (1280x800, ~82 x 56 degree field of view)
+    // Add sim camera, roughly matching a Limelight 3 (4:3 sensor, ~63 x 49 degree field of view,
+    // which is ~75 degrees corner to corner). The FOV figure is from memory, not verified.
     var cameraProperties = new SimCameraProperties();
-    cameraProperties.setCalibration(1280, 800, Rotation2d.fromDegrees(91.0));
+    cameraProperties.setCalibration(1280, 960, Rotation2d.fromDegrees(75.0));
     cameraProperties.setCalibError(0.35, 0.10);
     cameraProperties.setFPS(30.0);
     cameraProperties.setAvgLatencyMs(25.0);

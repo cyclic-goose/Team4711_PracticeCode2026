@@ -29,14 +29,19 @@ public class VisionConstants {
   // The real Limelight does NOT read this. Enter the same numbers in the Limelight web UI
   // (Settings / "Robot-space camera pose"); this copy is used by the simulator.
   //
-  // TODO: measure the real robot. These are placeholders: 10" forward, centered, 20" up, tilted
-  // up 20 degrees, facing forward.
+  // Limelight 3, mounted at the BACK-MIDDLE of the robot, facing FORWARD (so the robot's body is
+  // in front of it), about 1.5 ft (18") up, tilted up about 15 degrees.
+  //
+  // TODO: X is a GUESS. Measure from the robot's center (middle of the four wheels) back to the
+  // camera lens and put it here as a NEGATIVE number (behind center). Check the height and tilt
+  // too (a phone level app on the camera works). Then type the SAME numbers into the Limelight
+  // web UI, or the real robot and the simulator will disagree.
   public static Transform3d robotToCamera0 =
       new Transform3d(
-          Units.inchesToMeters(10.0),
+          Units.inchesToMeters(-10.0),
           0.0,
-          Units.inchesToMeters(20.0),
-          new Rotation3d(0.0, Units.degreesToRadians(-20.0), 0.0));
+          Units.inchesToMeters(18.0),
+          new Rotation3d(0.0, Units.degreesToRadians(-15.0), 0.0));
 
   // Basic filtering thresholds
   public static double maxAmbiguity = 0.3;

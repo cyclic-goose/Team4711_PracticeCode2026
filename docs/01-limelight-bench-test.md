@@ -2,7 +2,7 @@
 
 ## What's going on
 
-A **Limelight 4** has a 1280×800 global-shutter camera and should detect a full-size, properly
+A **Limelight 3** (the earlier notes assumed a Limelight 4) should detect a full-size, properly
 printed FRC tag reliably at **15–20+ feet**. Losing the tag about half the time at 6–8 ft,
 **with the camera sitting still**, is not normal. It also isn't something PID tuning or code can
 fix. Something is making the tag hard to read:
@@ -20,7 +20,7 @@ measuring for you.
 
 ## What you need
 
-- The Limelight 4, an Ethernet cable, and power: a 12 V supply on its power input, **or** a PoE
+- The Limelight 3, an Ethernet cable, and power: a 12 V supply on its power input, **or** a PoE
   injector.
 - A laptop.
 - **New printed tags** (next section).
@@ -117,7 +117,7 @@ Write the winners into a note. Those are your settings.
 ## Step 6: On the robot
 
 1. **Power:** your notes say the Limelight runs off the VRM's 12 V / 500 mA output. Follow the
-   Limelight 4 wiring docs instead: a PDH channel with a small breaker, or PoE. It looked stable,
+   Limelight 3 wiring docs instead: a PDH channel with a small breaker, or PoE. It looked stable,
    but a camera that's short on power can reset or behave oddly under load.
 2. **Static IP** `10.47.11.11`, team number 4711, name `limelight`.
 3. **Field map:** make sure the Limelight is using the **2026 field map** (welded). MegaTag
@@ -137,7 +137,7 @@ Write the winners into a note. Those are your settings.
 ## Tools to use during robot sessions
 
 - **Back button** on the controller saves a **snapshot** and the **last 20 seconds of video**
-  (Limelight 4 "Rewind"). The moment the tag drops, press Back. Later, open the captures in the
+  (Rewind video needs a Limelight 4; a Limelight 3 saves the snapshot only). The moment the tag drops, press Back. Later, open the captures in the
   Limelight web UI and *see* what the camera saw (blur? glare? tag out of frame?).
 - **`Vision/Camera0/DetectionRatePercent`** in AdvantageScope: the same measurement as the bench
   script, recorded for the whole session.

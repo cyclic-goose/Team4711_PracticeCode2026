@@ -8,6 +8,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.robot.Constants;
 import frc.robot.FieldConstants;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.vision.Vision;
@@ -58,12 +59,23 @@ public class AimController {
   // Heading controller gains. Units: kP is (rad/s of turning) per (rad of error).
   // Start with kD = 0. Raise kP until it snaps to the target quickly; if it overshoots/wobbles,
   // add a little kD or lower kP.
-  private final TunableNumber kP = new TunableNumber("Aim/kP", 5.0);
-  private final TunableNumber kD = new TunableNumber("Aim/kD", 0.2);
-  private final TunableNumber maxOmega = new TunableNumber("Aim/MaxOmegaRadPerSec", 6.0);
-  private final TunableNumber toleranceDeg = new TunableNumber("Aim/ToleranceDeg", 2.0);
+  // (Defaults live in Constants.Aim; the dashboard can change them live under /Tuning/Aim/.)
+  private final TunableNumber kP = new TunableNumber("Aim/kP", Constants.Aim.KP);
+  private final TunableNumber kD = new TunableNumber("Aim/kD", Constants.Aim.KD);
+  private final TunableNumber maxOmega =
+      new TunableNumber("Aim/MaxOmegaRadPerSec", Constants.Aim.MAX_OMEGA_RAD_PER_SEC);
+  private final TunableNumber toleranceDeg =
+      new TunableNumber("Aim/ToleranceDeg", Constants.Aim.TOLERANCE_DEG);
+  // Smallest turn rate used while still off target, to overcome wheel friction (see Constants.Aim)
+  private final TunableNumber minOmega =
+      new TunableNumber("Aim/MinOmegaRadPerSec", Constants.Aim.MIN_OMEGA_RAD_PER_SEC);
+  private final TunableNumber minOmegaCutoffDeg =
+      new TunableNumber("Aim/MinOmegaCutoffDeg", Constants.Aim.MIN_OMEGA_CUTOFF_DEG);
   // Only trust a tx reading if the frame is newer than this (the pose history only goes back ~1.5s)
-  private final TunableNumber maxFrameAgeSecs = new TunableNumber("Aim/MaxFrameAgeSecs", 0.5);
+  private final TunableNumber maxFrameAgeSecs =
+      new TunableNumber("Aim/MaxFrameAgeSecs", Constants.Aim.MAX_FRAME_AGE_SECS);
+  // Tag to aim at with the tx mode; -1 = whichever tag is seen first, then stick with it
+  private final TunableNumber requiredTagId = new TunableNumber("Aim/RequiredTagId", -1);
 
   private final Drive drive;
   private final Vision vision;
@@ -100,6 +112,8 @@ public class AimController {
         new Object() {
           double lastFrameTimestamp = 0.0;
           Rotation2d targetHeading = null; // null = haven't seen a tag yet
+          int lockedTagId = -1; // -1 = not locked onto a tag yet
+          double lastLockedSeenTimestamp = 0.0;
         };
 
     return Commands.run(
@@ -108,9 +122,28 @@ public class AimController {
               boolean isNewFrame = frame.timestamp() > state.lastFrameTimestamp;
               boolean isRecent = Timer.getTimestamp() - frame.timestamp() < maxFrameAgeSecs.get();
 
+              // The hub has two tags per face, and the camera reports only its "best" one, which
+              // can flip between them from frame to frame. Aiming at a flipping tag makes the robot
+              // jerk back and forth, so lock onto ONE tag and ignore frames showing other tags.
+              // (The lock is released if that tag disappears for a while.)
+              int wantedTag = (int) requiredTagId.get();
+              if (wantedTag >= 0) {
+                state.lockedTagId = wantedTag;
+              } else if (state.lockedTagId >= 0
+                  && Timer.getTimestamp() - state.lastLockedSeenTimestamp
+                      > Constants.Aim.TAG_LOCK_TIMEOUT_SECS) {
+                state.lockedTagId = -1;
+              }
+
               if (isNewFrame && isRecent && frame.hasTarget()) {
-                Rotation2d headingAtCapture = drive.getRotationAt(frame.timestamp());
-                state.targetHeading = AimingMath.headingFromTx(headingAtCapture, frame.tx());
+                if (state.lockedTagId < 0) {
+                  state.lockedTagId = frame.tagId();
+                }
+                if (frame.tagId() == state.lockedTagId) {
+                  state.lastLockedSeenTimestamp = Timer.getTimestamp();
+                  Rotation2d headingAtCapture = drive.getRotationAt(frame.timestamp());
+                  state.targetHeading = AimingMath.headingFromTx(headingAtCapture, frame.tx());
+                }
               }
               if (isNewFrame) {
                 state.lastFrameTimestamp = frame.timestamp();
@@ -128,6 +161,7 @@ public class AimController {
 
               Logger.recordOutput("Aim/Mode", "LimelightTx");
               Logger.recordOutput("Aim/HasTargetHeading", state.targetHeading != null);
+              Logger.recordOutput("Aim/LockedTagId", state.lockedTagId);
               Logger.recordOutput("Aim/FrameAgeSecs", Timer.getTimestamp() - frame.timestamp());
             },
             drive)
@@ -135,6 +169,7 @@ public class AimController {
             () -> {
               state.lastFrameTimestamp = 0.0;
               state.targetHeading = null;
+              state.lockedTagId = -1;
               controller.reset();
             })
         .finallyDo(() -> Logger.recordOutput("Aim/Mode", "None"));
@@ -199,6 +234,12 @@ public class AimController {
     double omega =
         feedforwardRadPerSec
             + controller.calculate(currentHeading.getRadians(), targetHeading.getRadians());
+    // Friction kick: near the target the P term is too weak to move the robot, so make sure it
+    // never asks for less than minOmega until it is within the cutoff angle.
+    if (Math.abs(lastErrorRad) > Math.toRadians(minOmegaCutoffDeg.get())
+        && Math.abs(omega) < minOmega.get()) {
+      omega = Math.copySign(minOmega.get(), lastErrorRad);
+    }
     omega = MathUtil.clamp(omega, -maxOmega.get(), maxOmega.get());
 
     Logger.recordOutput("Aim/ErrorDegrees", Math.toDegrees(lastErrorRad));

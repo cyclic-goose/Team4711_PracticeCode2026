@@ -1,6 +1,6 @@
 # Flying Aces 4711 — Limelight + Path Planning Trials (Oct 2026)
 
-A fresh robot project built to learn vision (Limelight 4) and path planning (PathPlanner)
+A fresh robot project built to learn vision (Limelight 3) and path planning (PathPlanner)
 properly before the 2027 season, using the 2026 robot.
 
 It is the official **AdvantageKit TalonFX swerve template** + AdvantageKit's **vision template**,
@@ -59,7 +59,7 @@ If `gradlew` can't find Java, use WPILib VS Code (it sets this up for you), or f
 | RT / LT | Intake rollers in / out, same as before |
 | D-pad down (hold) | Drive itself to the aiming spot in front of the hub (PathPlanner pathfinding), then aim. Let go to stop. |
 | D-pad up (hold) | Drive itself back to the start of the Classroom autos (so you don't push it back by hand) |
-| **Back** | Save a Limelight snapshot + the last 20 s of video (Limelight 4 Rewind) |
+| **Back** | Save a Limelight snapshot + the last 20 s of video (the video part only works on a Limelight 4; a Limelight 3 just saves the snapshot) |
 | Rumble | Aimed (during A, or the AimAtHub auto command) |
 
 **Speed limit:** teleop starts at 50% speed for classroom safety. Change it live at

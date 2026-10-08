@@ -62,20 +62,16 @@ public class Drive extends SubsystemBase {
               Math.hypot(TunerConstants.BackRight.LocationX, TunerConstants.BackRight.LocationY)));
 
   // PathPlanner config constants
-  // TODO: weigh the robot WITH bumpers and battery and put the real mass here (kg = lb / 2.205).
-  // MOI (how hard the robot is to spin) can stay as an estimate; PathPlanner's docs explain how to
-  // estimate it. These must match src/main/deploy/pathplanner/settings.json.
-  private static final double ROBOT_MASS_KG = 54.0;
-  private static final double ROBOT_MOI = 5.0;
-  private static final double WHEEL_COF = 1.2;
+  // Mass, MOI and wheel friction live in Constants.Robot (and must match
+  // src/main/deploy/pathplanner/settings.json).
   private static final RobotConfig PP_CONFIG =
       new RobotConfig(
-          ROBOT_MASS_KG,
-          ROBOT_MOI,
+          Constants.Robot.MASS_KG,
+          Constants.Robot.MOI_KG_M2,
           new ModuleConfig(
               TunerConstants.FrontLeft.WheelRadius,
               TunerConstants.kSpeedAt12Volts.in(MetersPerSecond),
-              WHEEL_COF,
+              Constants.Robot.WHEEL_COF,
               // Kraken X60s, voltage control (no Phoenix Pro FOC) per TunerConstants
               DCMotor.getKrakenX60(1).withReduction(TunerConstants.FrontLeft.DriveMotorGearRatio),
               TunerConstants.FrontLeft.SlipCurrent,
@@ -87,8 +83,10 @@ public class Drive extends SubsystemBase {
   // correct for drift: translation kP = (m/s of correction) per meter of position error, rotation
   // kP = (rad/s of correction) per radian of heading error. If the robot oscillates around the
   // path, lower them; if it lags behind and never quite catches up, raise them.
-  private static final PIDConstants PATH_TRANSLATION_PID = new PIDConstants(5.0, 0.0, 0.0);
-  private static final PIDConstants PATH_ROTATION_PID = new PIDConstants(5.0, 0.0, 0.0);
+  private static final PIDConstants PATH_TRANSLATION_PID =
+      new PIDConstants(Constants.Path.TRANSLATION_KP, 0.0, 0.0);
+  private static final PIDConstants PATH_ROTATION_PID =
+      new PIDConstants(Constants.Path.ROTATION_KP, 0.0, 0.0);
 
   static final Lock odometryLock = new ReentrantLock();
   private final GyroIO gyroIO;

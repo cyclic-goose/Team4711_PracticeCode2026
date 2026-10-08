@@ -22,6 +22,7 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.robot.Constants;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.util.TunableNumber;
 import java.text.DecimalFormat;
@@ -32,7 +33,7 @@ import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 public class DriveCommands {
-  private static final double DEADBAND = 0.1;
+  private static final double DEADBAND = Constants.Driver.DEADBAND;
   private static final double ANGLE_KP = 5.0;
   private static final double ANGLE_KD = 0.4;
   private static final double ANGLE_MAX_VELOCITY = 8.0;
@@ -42,9 +43,11 @@ public class DriveCommands {
   private static final double WHEEL_RADIUS_MAX_VELOCITY = 0.25; // Rad/Sec
   private static final double WHEEL_RADIUS_RAMP_RATE = 0.05; // Rad/Sec^2
 
-  // Fraction of full speed the driver gets (1.0 = full speed). Starts at half speed because
-  // testing happens in a classroom; raise it live from /Tuning/Drive/TeleopSpeedScale.
-  private static final TunableNumber SPEED_SCALE = new TunableNumber("Drive/TeleopSpeedScale", 0.5);
+  // Driver feel. Defaults live in Constants.Driver; change them live from /Tuning/Drive/...
+  private static final TunableNumber SPEED_SCALE =
+      new TunableNumber("Drive/TeleopSpeedScale", Constants.Driver.TRANSLATION_SCALE);
+  private static final TunableNumber MAX_OMEGA =
+      new TunableNumber("Drive/TeleopMaxOmegaRadPerSec", Constants.Driver.MAX_OMEGA_RAD_PER_SEC);
 
   private DriveCommands() {}
 
@@ -106,7 +109,7 @@ public class DriveCommands {
               new ChassisSpeeds(
                   linearVelocity.getX() * drive.getMaxLinearSpeedMetersPerSec(),
                   linearVelocity.getY() * drive.getMaxLinearSpeedMetersPerSec(),
-                  omega * drive.getMaxAngularSpeedRadPerSec() * SPEED_SCALE.get());
+                  omega * MAX_OMEGA.get());
           boolean isFlipped =
               DriverStation.getAlliance().isPresent()
                   && DriverStation.getAlliance().get() == Alliance.Red;

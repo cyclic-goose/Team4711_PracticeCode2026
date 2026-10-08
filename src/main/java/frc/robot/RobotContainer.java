@@ -62,9 +62,13 @@ public class RobotContainer {
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
 
-  // Speed limits for on-the-fly pathfinding (m/s, m/s², rad/s, rad/s²). Start slow!
+  // Speed limits for on-the-fly pathfinding (values in Constants.Path). Start slow!
   private final PathConstraints pathfindingConstraints =
-      new PathConstraints(2.0, 2.0, Units.degreesToRadians(360), Units.degreesToRadians(540));
+      new PathConstraints(
+          Constants.Path.PATHFIND_MAX_VEL_MPS,
+          Constants.Path.PATHFIND_MAX_ACCEL_MPS2,
+          Units.degreesToRadians(Constants.Path.PATHFIND_MAX_ANG_VEL_DEG_PER_SEC),
+          Units.degreesToRadians(Constants.Path.PATHFIND_MAX_ANG_ACCEL_DEG_PER_SEC2));
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -249,7 +253,8 @@ public class RobotContainer {
     controller.b().onTrue(Commands.runOnce(intake::toggleLocked));
 
     // ---------------- Vision debugging ----------------
-    // Back: save a Limelight snapshot AND the last 20 seconds of video (Limelight 4 Rewind).
+    // Back: save a Limelight snapshot AND the last 20 seconds of video (Rewind is Limelight 4 only;
+    // harmless on a Limelight 3).
     // Press it right after the tag drops out, then look at the files in the Limelight web UI.
     controller
         .back()

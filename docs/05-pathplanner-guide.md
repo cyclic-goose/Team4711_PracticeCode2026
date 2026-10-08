@@ -275,7 +275,7 @@ Open the project folder: the one with `build.gradle` in it. PathPlanner finds
 `src/main/deploy/pathplanner` by itself. You'll see the `Classroom` folders of paths and autos.
 
 Open **Settings** and look at the robot config. It should already match the code (Kraken X60,
-54 kg, module positions ±0.2667 m...). **If you change a value here, change it in
+54 kg, module positions ±0.235 m...). **If you change a value here, change it in
 `Drive.PP_CONFIG` too.**
 
 ## B3. Draw a path
