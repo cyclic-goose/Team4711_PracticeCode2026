@@ -1,6 +1,6 @@
 {
-  "robotWidth": 0.9,
-  "robotLength": 0.9,
+  "robotWidth": 0.6604,
+  "robotLength": 0.6604,
   "holonomicMode": true,
   "pathFolders": [
     "Classroom"
@@ -14,7 +14,7 @@
   "defaultMaxAngAccel": 720,
   "robotMass": 54.4,
   "robotMOI": 5,
-  "robotTrackwidth": 0.4699,
+  "robotTrackwidth": 0.5461,
   "driveWheelRadius": 0.0508,
   "driveGearing": 6.821052631578947,
   "maxDriveSpeed": 4.5,

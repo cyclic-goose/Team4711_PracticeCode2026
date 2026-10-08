@@ -125,7 +125,7 @@ class SimulatedRobotTest {
     // ~10x faster than real time, so give the planner a moment before the robot starts moving.
     Thread.sleep(500);
     double hubHalfWidth = 1.207 / 2.0;
-    double robotHalfWidth = 0.4; // Bumpers are ~0.45; the navgrid adds extra margin beyond that
+    double robotHalfWidth = 0.3302; // Bumpers are ~0.45; the navgrid adds extra margin beyond that
     for (int i = 0; i < 500; i++) {
       runFor(0.02);
       Thread.sleep(2);
